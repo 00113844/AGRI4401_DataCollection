@@ -81,8 +81,6 @@ def show_point_detail(point):
     # get optional parameter filter
     query_params = st.experimental_get_query_params()
     selected_param = query_params.get("param", [None])[0]
-    # show basic location
-    st.metric("Location", f"{point['Latitude']:.4f}, {point['Longitude']:.4f}")
     # show either all metrics or only the selected one
     if not selected_param or selected_param == "All":
         col1, col2, col3 = st.columns(3)
