@@ -13,19 +13,16 @@ st.set_page_config(
 )
 
 # Sample data - replace with your actual data
-@st.cache_data
 def load_data():
-    data = {
-        'PointID': [1, 2, 3, 4, 5],
-        'Latitude': [-31.9505, -31.9510, -31.9515, -31.9520, -31.9525],
-        'Longitude': [115.8605, 115.8610, 115.8615, 115.8620, 115.8625],
-        'Clay_percent': [20.5, 18.2, 22.1, 19.8, 21.3],
-        'P_ppm': [25, 30, 20, 35, 28],
-        'K_ppm': [180, 165, 195, 170, 185],
-        'NDVI': [0.65, 0.72, 0.58, 0.68, 0.63],
-        'pH': [6.2, 6.8, 6.1, 6.5, 6.3]
-    }
-    return pd.DataFrame(data)
+    """Load sampling point data from CSV file"""
+    try:
+        # read full CSV then drop Latitude/Longitude columns
+        df = pd.read_csv("data/points.csv")
+        df = df.drop(columns=["Latitude", "Longitude"], errors="ignore")
+        return df
+    except FileNotFoundError:
+        st.error("Data file not found: data/points.csv. Please add your 43-point CSV.")
+        return pd.DataFrame()
 
 def generate_qr_code(url):
     """Generate QR code for a given URL"""
@@ -62,27 +59,54 @@ def main():
         except ValueError:
             st.error("Invalid point ID")
     else:
-        # Show admin interface
-        show_admin_interface(df)
+        # Password-protected admin interface
+        # Define admin password (replace or use st.secrets)
+        ADMIN_PASSWORD = "changeme"
+        if not st.session_state.get("authenticated", False):
+            st.subheader("Admin Login")
+            pwd = st.text_input("Enter admin password", type="password")
+            if st.button("Login"):
+                if pwd == ADMIN_PASSWORD:
+                    st.session_state.authenticated = True
+                    st.success("Logged in successfully")
+                else:
+                    st.error("Incorrect password")
+        if st.session_state.get("authenticated", False):
+            show_admin_interface(df)
 
 def show_point_detail(point):
     """Display detailed information for a specific point"""
     st.header(f"Point {point['PointID']} - Field Data")
     
-    # Create columns for better layout
-    col1, col2, col3 = st.columns(3)
-    
-    with col1:
-        st.metric("Location", f"{point['Latitude']:.4f}, {point['Longitude']:.4f}")
-        st.metric("Clay %", f"{point['Clay_percent']}%")
-    
-    with col2:
-        st.metric("P (ppm)", f"{point['P_ppm']} ppm")
-        st.metric("K (ppm)", f"{point['K_ppm']} ppm")
-    
-    with col3:
-        st.metric("NDVI", f"{point['NDVI']:.2f}")
-        st.metric("pH", f"{point['pH']:.1f}")
+    # get optional parameter filter
+    query_params = st.experimental_get_query_params()
+    selected_param = query_params.get("param", [None])[0]
+    # show basic location
+    st.metric("Location", f"{point['Latitude']:.4f}, {point['Longitude']:.4f}")
+    # show either all metrics or only the selected one
+    if not selected_param or selected_param == "All":
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Clay %", f"{point['Clay_percent']}%")
+            st.metric("P (ppm)", f"{point['P_ppm']} ppm")
+        with col2:
+            st.metric("K (ppm)", f"{point['K_ppm']} ppm")
+            st.metric("NDVI", f"{point['NDVI']:.2f}")
+        with col3:
+            st.metric("pH", f"{point['pH']:.1f}")
+    else:
+        # display only the requested parameter
+        label = selected_param.replace("_", " ")
+        value = point[selected_param]
+        if selected_param == "NDVI":
+            fmt = f"{value:.2f}"
+        elif selected_param == "pH":
+            fmt = f"{value:.1f}"
+        elif selected_param == "Clay_percent":
+            fmt = f"{value}%"
+        else:
+            fmt = f"{value}"
+        st.metric(label, fmt)
     
     # Instructions
     st.info("""
@@ -124,16 +148,21 @@ def show_admin_interface(df):
     
     with tab1:
         st.subheader("Generate QR Codes for Field Deployment")
-        
         # Get base URL
         base_url = st.text_input("Base URL", value="https://your-app.streamlit.app/")
+        # Select parameter for this map
+        param = st.selectbox("Select parameter (or All)", ["All", "Clay_percent", "P_ppm", "K_ppm", "NDVI", "pH"])
         
         if st.button("Generate All QR Codes"):
             cols = st.columns(3)
             
             for index, (_, row) in enumerate(df.iterrows()):
                 point_id = row['PointID']
-                url = f"{base_url}?point={point_id}"
+                # construct URL with optional parameter
+                if param == "All":
+                    url = f"{base_url}?point={point_id}"
+                else:
+                    url = f"{base_url}?point={point_id}&param={param}"
                 
                 # Generate QR code
                 qr_img = generate_qr_code(url)
