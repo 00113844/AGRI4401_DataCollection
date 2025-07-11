@@ -1,0 +1,21 @@
+# Ignore all PNG images (e.g., generated QR codes)
+*.png
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment directories
+.venv/
+env/
+
+# Streamlit files
+.streamlit/
+
+# Data files (optional)
+# data/points.csv
+
+# IDE and OS files
+*.DS_Store
+*.log
