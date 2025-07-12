@@ -38,17 +38,17 @@ def generate_qr_code(url):
 
 def main():
     st.title("🗺️ Geostatistics Field Data Collection")
-    
     df = load_data()
-    
+
     # URL parameters to show specific record by UID
-    query_params = st.experimental_get_query_params()
-    if 'uid' in query_params:
-        # Show specific map-point data
-        uid = query_params['uid'][0]
+    query_params = st.query_params
+
+    if 'uid' in query_params and query_params['uid']:
+        # Show specific map-point data by UID
+        uid = query_params['uid']
+
         # match as string or numeric UID
         point_data = df[df['UID'].astype(str) == uid]
-         
         if not point_data.empty:
             show_point_detail(point_data.iloc[0])
         else:
