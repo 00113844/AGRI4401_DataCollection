@@ -3,7 +3,7 @@ import argparse
 import pandas as pd
 import qrcode
 
-def generate_qr(url, path):
+def generate_qr_code(url, path):
     qr = qrcode.QRCode(box_size=10, border=4)
     qr.add_data(url)
     qr.make(fit=True)
@@ -23,7 +23,7 @@ def main(csv_path, base_url, out_dir):
         url = f"{base_url.rstrip('/')}/?uid={uid}"
         # Filename per UID
         filename = os.path.join(out_dir, f"qr_uid_{uid}.png")
-        generate_qr(url, filename)
+        generate_qr_code(url, filename)
         print(f"Saved QR for UID {uid} (Map {map_name}, Point {point}) → {filename}")
 
 if __name__ == "__main__":

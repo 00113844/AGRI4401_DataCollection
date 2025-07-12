@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import qrcode
 from io import BytesIO
-import base64
 from PIL import Image
 
 # Page configuration
@@ -23,7 +22,9 @@ def load_data():
         return pd.DataFrame()
 
 def generate_qr_code(url):
-    """Generate QR code for a given URL"""
+    """Generate QR code for a given URL, enforcing https://"""
+    if not url.lower().startswith(("http://", "https://")):
+        url = "https://" + url               # <-- ensure scheme
     qr = qrcode.QRCode(
         version=1,
         error_correction=qrcode.constants.ERROR_CORRECT_L,
@@ -40,17 +41,15 @@ def main():
     st.title("🗺️ Geostatistics Field Data Collection")
     df = load_data()
 
-    # URL parameters to show specific record by UID
-    query_params = st.query_params
-
-    if 'uid' in query_params and query_params['uid']:
-        # Show specific map-point data by UID
-        uid = query_params['uid']
-
-        # match as string or numeric UID
-        point_data = df[df['UID'].astype(str) == uid]
+    # new query‐params API returns lists of values
+    params = st.query_params
+    uid_list = params.get("uid", [])
+    if uid_list:
+        uid = uid_list[0]                       # <-- take the first one
+        # match as string
+        point_data = df[df["UID"].astype(str) == uid]
         if not point_data.empty:
-            show_point_detail(point_data.iloc[0])
+            show_point_detail(point_data.iloc[0]) 
         else:
             st.error(f"Record {uid} not found")
     else:
@@ -112,7 +111,9 @@ def show_point_detail(point):
             # Here you could save to a database or Google Sheets
             st.success("Data recorded successfully!")
             st.json({
-                "Point": point['PointID'],
+                "UID": point['UID'],
+                "Map": point['MAP'],
+                "Point": point['POINT'],
                 "Student": student_name,
                 "Group": group_name,
                 "RTK_Lat": rtk_lat,
