@@ -69,25 +69,17 @@ def main():
             show_admin_interface(df)
 
 def show_point_detail(point):
-    """Display detailed information for a specific point"""
-    # Display map name and point id
-    st.header(f"{point['MAP']} - Point {point['POINT']}")
-     
-    # Show only the metric for this map
-    metric_name = point['MAP']
-    metric_label = metric_name.replace('_', ' ').replace('percent', '%')
-    metric_value = point[metric_name]
-    # Format numeric output
-    if metric_name in ['NDVI']:
-        display = f"{metric_value:.2f}"
-    elif metric_name in ['pH']:
-        display = f"{metric_value:.1f}"
-    elif metric_name in ['Clay_percent']:
-        display = f"{metric_value}%"
-    else:
-        display = str(metric_value)
-    st.metric(metric_label, display)
-     
+    """Display all five parameters for one UID."""
+    # Header
+    st.header(f"UID: {point['UID']}  |  Map: {point['MAP']}  |  Point: {point['POINT']}")
+    
+    # Display each metric
+    st.metric("Clay %",   f"{point['Clay_percent']}%")
+    st.metric("P (ppm)",  point["P_ppm"])
+    st.metric("K (ppm)",  point["K_ppm"])
+    st.metric("NDVI",     f"{point['NDVI']:.2f}")
+    st.metric("pH",       f"{point['pH']:.1f}")
+    
     # Instructions
     st.info("""
     **Instructions:**
