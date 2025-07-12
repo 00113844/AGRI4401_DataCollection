@@ -3,6 +3,7 @@ import pandas as pd
 import qrcode
 from io import BytesIO
 from PIL import Image
+from urllib.parse import quote
 
 # Page configuration
 st.set_page_config(
@@ -138,7 +139,8 @@ def show_admin_interface(df):
                 uid = row['UID']
                 point = row['POINT']
                 map_name = row['MAP']
-                url = f"{base_url.rstrip('/')}/?uid={uid}"
+                # percent-encode UID to ensure scanners treat full string
+                url = f"{base_url.rstrip('/')}?uid={quote(uid)}"
                 
                 # Generate QR code
                 qr_img = generate_qr_code(url)
