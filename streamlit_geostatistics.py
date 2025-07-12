@@ -16,10 +16,8 @@ st.set_page_config(
 def load_data():
     """Load sampling point data from CSV file"""
     try:
-        # read full CSV then drop Latitude/Longitude columns
-        df = pd.read_csv("data/points.csv")
-        df = df.drop(columns=["Latitude", "Longitude"], errors="ignore")
-        return df
+        # read CSV with columns: UID, MAP, POINT, Clay_percent, P_ppm, K_ppm, NDVI, pH
+        return pd.read_csv("data/points.csv")
     except FileNotFoundError:
         st.error("Data file not found: data/points.csv. Please add your 43-point CSV.")
         return pd.DataFrame()
@@ -43,24 +41,20 @@ def main():
     
     df = load_data()
     
-    # URL parameters to show specific point
+    # URL parameters to show specific record by UID
     query_params = st.experimental_get_query_params()
-    
-    if 'point' in query_params:
-        # Show specific point data
-        try:
-            point_id = int(query_params['point'][0])
-            point_data = df[df['PointID'] == point_id]
-            
-            if not point_data.empty:
-                show_point_detail(point_data.iloc[0])
-            else:
-                st.error(f"Point {point_id} not found")
-        except ValueError:
-            st.error("Invalid point ID")
+    if 'uid' in query_params:
+        # Show specific map-point data
+        uid = query_params['uid'][0]
+        # match as string or numeric UID
+        point_data = df[df['UID'].astype(str) == uid]
+         
+        if not point_data.empty:
+            show_point_detail(point_data.iloc[0])
+        else:
+            st.error(f"Record {uid} not found")
     else:
-        # Password-protected admin interface
-        # Define admin password (replace or use st.secrets)
+        # Protected admin interface
         ADMIN_PASSWORD = "changeme"
         if not st.session_state.get("authenticated", False):
             st.subheader("Admin Login")
@@ -76,36 +70,24 @@ def main():
 
 def show_point_detail(point):
     """Display detailed information for a specific point"""
-    st.header(f"Point {point['PointID']} - Field Data")
-    
-    # get optional parameter filter
-    query_params = st.experimental_get_query_params()
-    selected_param = query_params.get("param", [None])[0]
-    # show either all metrics or only the selected one
-    if not selected_param or selected_param == "All":
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Clay %", f"{point['Clay_percent']}%")
-            st.metric("P (ppm)", f"{point['P_ppm']} ppm")
-        with col2:
-            st.metric("K (ppm)", f"{point['K_ppm']} ppm")
-            st.metric("NDVI", f"{point['NDVI']:.2f}")
-        with col3:
-            st.metric("pH", f"{point['pH']:.1f}")
+    # Display map name and point id
+    st.header(f"{point['MAP']} - Point {point['POINT']}")
+     
+    # Show only the metric for this map
+    metric_name = point['MAP']
+    metric_label = metric_name.replace('_', ' ').replace('percent', '%')
+    metric_value = point[metric_name]
+    # Format numeric output
+    if metric_name in ['NDVI']:
+        display = f"{metric_value:.2f}"
+    elif metric_name in ['pH']:
+        display = f"{metric_value:.1f}"
+    elif metric_name in ['Clay_percent']:
+        display = f"{metric_value}%"
     else:
-        # display only the requested parameter
-        label = selected_param.replace("_", " ")
-        value = point[selected_param]
-        if selected_param == "NDVI":
-            fmt = f"{value:.2f}"
-        elif selected_param == "pH":
-            fmt = f"{value:.1f}"
-        elif selected_param == "Clay_percent":
-            fmt = f"{value}%"
-        else:
-            fmt = f"{value}"
-        st.metric(label, fmt)
-    
+        display = str(metric_value)
+    st.metric(metric_label, display)
+     
     # Instructions
     st.info("""
     **Instructions:**
@@ -148,36 +130,31 @@ def show_admin_interface(df):
         st.subheader("Generate QR Codes for Field Deployment")
         # Get base URL
         base_url = st.text_input("Base URL", value="https://your-app.streamlit.app/")
-        # Select parameter for this map
-        param = st.selectbox("Select parameter (or All)", ["All", "Clay_percent", "P_ppm", "K_ppm", "NDVI", "pH"])
-        
         if st.button("Generate All QR Codes"):
-            cols = st.columns(3)
-            
-            for index, (_, row) in enumerate(df.iterrows()):
-                point_id = row['PointID']
-                # construct URL with optional parameter
-                if param == "All":
-                    url = f"{base_url}?point={point_id}"
-                else:
-                    url = f"{base_url}?point={point_id}&param={param}"
+            cols = st.columns(5)
+            # Generate one QR per UID
+            for idx, row in df.iterrows():
+                uid = row['UID']
+                point = row['POINT']
+                map_name = row['MAP']
+                url = f"{base_url.rstrip('/')}/?uid={uid}"
                 
                 # Generate QR code
                 qr_img = generate_qr_code(url)
                 
-                # Display in columns
-                col_idx = index % 3
-                with cols[col_idx]:
-                    st.image(qr_img, caption=f"Point {point_id}")
+                # Arrange in columns
+                col = cols[idx % len(cols)]
+                with col:
+                    st.image(qr_img, caption=f"{map_name} - Point {point}")
                     st.text(f"URL: {url}")
-                    
+                     
                     # Download button for QR code
                     buffer = BytesIO()
                     qr_img.save(buffer, format='PNG')
                     st.download_button(
-                        label=f"Download QR Code {point_id}",
+                        label=f"Download QR: UID {uid}",
                         data=buffer.getvalue(),
-                        file_name=f"point_{point_id}_qr.png",
+                        file_name=f"qr_uid_{uid}.png",
                         mime="image/png"
                     )
     
