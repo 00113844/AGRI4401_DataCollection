@@ -42,15 +42,15 @@ def main():
     st.title("🗺️ Geostatistics Field Data Collection")
     df = load_data()
 
-    # new query‐params API returns lists of values
-    params = st.query_params
-    uid_list = params.get("uid", [])
+    # old: uid_list = st.query_params.get("uid", [])
+    # new: always use get_all() so it's a list
+    params   = st.query_params
+    uid_list = params.get_all("uid")
     if uid_list:
-        uid = uid_list[0]                       # <-- take the first one
-        # match as string
+        uid = uid_list[0]  # full UID, not just the first char
         point_data = df[df["UID"].astype(str) == uid]
         if not point_data.empty:
-            show_point_detail(point_data.iloc[0]) 
+            show_point_detail(point_data.iloc[0])
         else:
             st.error(f"Record {uid} not found")
     else:
